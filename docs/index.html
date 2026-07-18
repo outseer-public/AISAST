@@ -1,0 +1,1200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AISAST — AI-Native Static Application Security Testing</title>
+  <style>
+    /* ── Reset ─────────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    /* ── Variables ─────────────────────────────────────────── */
+    :root {
+      --navy:       #1a1f2e;
+      --navy-light: #242938;
+      --navy-mid:   #2d3348;
+      --green:      #00ff88;
+      --green-dim:  #00cc6a;
+      --green-dark: #004d28;
+      --accent:     #00c9ff;
+      --text:       #c8d0e0;
+      --text-dim:   #7a8599;
+      --text-head:  #e8edf5;
+      --border:     #2d3348;
+      --sidebar-w:  280px;
+      --code-bg:    #111827;
+    }
+
+    /* ── Base ──────────────────────────────────────────────── */
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      background: var(--navy);
+      color: var(--text);
+      display: flex;
+      min-height: 100vh;
+      font-size: 15px;
+      line-height: 1.7;
+    }
+
+    /* ── Sidebar ───────────────────────────────────────────── */
+    #sidebar {
+      width: var(--sidebar-w);
+      min-height: 100vh;
+      background: var(--navy-light);
+      border-right: 1px solid var(--border);
+      position: fixed;
+      top: 0; left: 0; bottom: 0;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      z-index: 100;
+    }
+
+    .sidebar-logo {
+      padding: 28px 20px 20px;
+      border-bottom: 1px solid var(--border);
+    }
+    .sidebar-logo .logo-mark {
+      font-size: 22px;
+      font-weight: 800;
+      color: var(--green);
+      letter-spacing: -0.5px;
+    }
+    .sidebar-logo .logo-sub {
+      font-size: 11px;
+      color: var(--text-dim);
+      margin-top: 4px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .sidebar-search {
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border);
+    }
+    .sidebar-search input {
+      width: 100%;
+      background: var(--navy-mid);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text);
+      padding: 7px 12px;
+      font-size: 13px;
+      outline: none;
+    }
+    .sidebar-search input::placeholder { color: var(--text-dim); }
+
+    nav { padding: 12px 0 24px; flex: 1; }
+
+    .nav-section {
+      padding: 16px 20px 4px;
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      color: var(--text-dim);
+    }
+
+    nav a {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 7px 20px;
+      color: var(--text);
+      text-decoration: none;
+      font-size: 13.5px;
+      border-left: 3px solid transparent;
+      transition: all 0.15s;
+    }
+    nav a:hover { color: var(--green); background: rgba(0,255,136,0.05); }
+    nav a.active {
+      color: var(--green);
+      border-left-color: var(--green);
+      background: rgba(0,255,136,0.08);
+      font-weight: 600;
+    }
+    nav a .nav-icon { font-size: 14px; width: 18px; text-align: center; }
+    nav a.sub { padding-left: 46px; font-size: 13px; color: var(--text-dim); }
+    nav a.sub:hover { color: var(--green); }
+
+    /* ── Main ──────────────────────────────────────────────── */
+    #main {
+      margin-left: var(--sidebar-w);
+      flex: 1;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ── Top bar ───────────────────────────────────────────── */
+    #topbar {
+      position: sticky;
+      top: 0;
+      background: var(--navy);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 40px;
+      height: 52px;
+      z-index: 50;
+    }
+    .breadcrumb { font-size: 13px; color: var(--text-dim); }
+    .breadcrumb span { color: var(--green); }
+    .topbar-actions { display: flex; gap: 12px; align-items: center; }
+    .btn-small {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--text-dim);
+      padding: 5px 12px;
+      border-radius: 5px;
+      font-size: 12px;
+      cursor: pointer;
+      text-decoration: none;
+      transition: all 0.15s;
+    }
+    .btn-small:hover { border-color: var(--green); color: var(--green); }
+
+    /* ── Content ───────────────────────────────────────────── */
+    #content {
+      max-width: 860px;
+      padding: 56px 48px 80px;
+      flex: 1;
+    }
+
+    /* ── Hero ──────────────────────────────────────────────── */
+    .hero {
+      margin-bottom: 48px;
+    }
+    .hero-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(0,255,136,0.1);
+      border: 1px solid rgba(0,255,136,0.3);
+      color: var(--green);
+      font-size: 12px;
+      font-weight: 600;
+      padding: 4px 12px;
+      border-radius: 20px;
+      margin-bottom: 20px;
+      letter-spacing: 0.5px;
+    }
+    .hero h1 {
+      font-size: 42px;
+      font-weight: 800;
+      color: var(--text-head);
+      line-height: 1.2;
+      margin-bottom: 16px;
+      letter-spacing: -1px;
+    }
+    .hero h1 em {
+      font-style: normal;
+      color: var(--green);
+    }
+    .hero .tagline {
+      font-size: 17px;
+      color: var(--text-dim);
+      line-height: 1.6;
+      max-width: 620px;
+      margin-bottom: 28px;
+    }
+
+    .hero-pills {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-bottom: 32px;
+    }
+    .pill {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: var(--navy-mid);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 6px 14px;
+      font-size: 13px;
+      color: var(--text);
+    }
+    .pill .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--green); }
+
+    /* ── Pipeline diagram ──────────────────────────────────── */
+    .pipeline {
+      display: flex;
+      align-items: stretch;
+      gap: 0;
+      margin: 32px 0 40px;
+      border-radius: 10px;
+      overflow: hidden;
+      border: 1px solid var(--border);
+    }
+    .phase {
+      flex: 1;
+      padding: 18px 14px;
+      background: var(--navy-mid);
+      border-right: 1px solid var(--border);
+      text-align: center;
+      position: relative;
+    }
+    .phase:last-child { border-right: none; }
+    .phase-num {
+      font-size: 10px;
+      font-weight: 700;
+      color: var(--green);
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      margin-bottom: 6px;
+    }
+    .phase-icon { font-size: 22px; margin-bottom: 6px; }
+    .phase-name {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--text-head);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .phase-desc { font-size: 11px; color: var(--text-dim); margin-top: 4px; }
+    .phase-arrow {
+      position: absolute;
+      right: -10px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--green);
+      font-size: 14px;
+      z-index: 1;
+    }
+
+    /* ── Section headings ──────────────────────────────────── */
+    .section { margin-bottom: 52px; }
+    h2 {
+      font-size: 26px;
+      font-weight: 800;
+      color: var(--text-head);
+      margin-bottom: 16px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      letter-spacing: -0.3px;
+    }
+    h2 .icon { font-size: 22px; }
+    h3 {
+      font-size: 17px;
+      font-weight: 700;
+      color: var(--text-head);
+      margin: 24px 0 10px;
+    }
+    p { margin-bottom: 14px; color: var(--text); }
+
+    /* ── Callout box ───────────────────────────────────────── */
+    .callout {
+      border-left: 3px solid var(--green);
+      background: rgba(0,255,136,0.06);
+      border-radius: 0 8px 8px 0;
+      padding: 16px 20px;
+      margin: 24px 0;
+      font-size: 14px;
+    }
+    .callout.warning {
+      border-left-color: #ffb300;
+      background: rgba(255,179,0,0.06);
+    }
+    .callout.info {
+      border-left-color: var(--accent);
+      background: rgba(0,201,255,0.06);
+    }
+    .callout-title {
+      font-weight: 700;
+      font-size: 13px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 6px;
+      color: var(--green);
+    }
+    .callout.warning .callout-title { color: #ffb300; }
+    .callout.info .callout-title { color: var(--accent); }
+
+    /* ── Feature grid ──────────────────────────────────────── */
+    .feature-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 16px;
+      margin: 24px 0;
+    }
+    .feature-card {
+      background: var(--navy-mid);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 20px;
+      transition: border-color 0.2s;
+    }
+    .feature-card:hover { border-color: var(--green); }
+    .feature-card .fc-icon { font-size: 24px; margin-bottom: 10px; }
+    .feature-card h4 {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--text-head);
+      margin-bottom: 6px;
+    }
+    .feature-card p { font-size: 13px; color: var(--text-dim); margin: 0; }
+
+    /* ── Table ─────────────────────────────────────────────── */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 20px 0;
+      font-size: 14px;
+    }
+    th {
+      background: var(--navy-mid);
+      color: var(--text-head);
+      padding: 10px 14px;
+      text-align: left;
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      border-bottom: 2px solid var(--green);
+    }
+    td {
+      padding: 10px 14px;
+      border-bottom: 1px solid var(--border);
+      color: var(--text);
+      vertical-align: top;
+    }
+    tr:hover td { background: rgba(0,255,136,0.03); }
+    .badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.3px;
+    }
+    .badge.critical { background: rgba(255,60,60,0.15); color: #ff6060; }
+    .badge.high     { background: rgba(255,140,0,0.15); color: #ff9900; }
+    .badge.medium   { background: rgba(255,220,0,0.15); color: #ffd700; }
+    .badge.low      { background: rgba(0,200,100,0.15); color: #00c864; }
+    .badge.yes      { background: rgba(0,255,136,0.15); color: var(--green); }
+    .badge.no       { background: rgba(255,60,60,0.15); color: #ff6060; }
+
+    /* ── Code block ────────────────────────────────────────── */
+    .code-block {
+      background: var(--code-bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      margin: 20px 0;
+      overflow: hidden;
+    }
+    .code-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 16px;
+      background: var(--navy-mid);
+      border-bottom: 1px solid var(--border);
+    }
+    .code-lang {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--green);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+    .code-copy {
+      font-size: 11px;
+      color: var(--text-dim);
+      cursor: pointer;
+      background: none;
+      border: none;
+      color: var(--text-dim);
+    }
+    pre {
+      padding: 20px;
+      overflow-x: auto;
+      font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+      font-size: 13px;
+      line-height: 1.6;
+      color: #a8c0d6;
+    }
+    code {
+      background: var(--code-bg);
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-family: 'SF Mono', 'Fira Code', monospace;
+      font-size: 13px;
+      color: var(--green);
+    }
+    .kw { color: #c792ea; }
+    .str { color: #c3e88d; }
+    .cm { color: #546e7a; font-style: italic; }
+    .fn { color: #82aaff; }
+    .num { color: #f78c6c; }
+
+    /* ── List ──────────────────────────────────────────────── */
+    ul, ol { padding-left: 22px; margin: 12px 0 16px; }
+    li { margin-bottom: 7px; color: var(--text); }
+    li::marker { color: var(--green); }
+
+    /* ── LWRA section ──────────────────────────────────────── */
+    .adjustment-example {
+      display: grid;
+      grid-template-columns: 1fr 40px 1fr;
+      align-items: center;
+      gap: 8px;
+      margin: 16px 0;
+    }
+    .adj-card {
+      background: var(--navy-mid);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 14px 16px;
+    }
+    .adj-card .label { font-size: 11px; color: var(--text-dim); margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
+    .adj-card .value { font-size: 18px; font-weight: 800; }
+    .adj-card .context { font-size: 12px; color: var(--text-dim); margin-top: 4px; }
+    .adj-arrow { text-align: center; font-size: 22px; color: var(--green); }
+
+    /* ── Divider ───────────────────────────────────────────── */
+    hr { border: none; border-top: 1px solid var(--border); margin: 40px 0; }
+
+    /* ── Disclaimer ────────────────────────────────────────── */
+    .disclaimer {
+      background: var(--navy-mid);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 20px 24px;
+      font-size: 13px;
+      color: var(--text-dim);
+      line-height: 1.7;
+    }
+    .disclaimer strong { color: var(--text); }
+
+    /* ── Footer nav ────────────────────────────────────────── */
+    .footer-nav {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 28px 48px;
+      border-top: 1px solid var(--border);
+      margin-top: auto;
+    }
+    .footer-nav a {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--text-dim);
+      text-decoration: none;
+      font-size: 14px;
+      padding: 10px 16px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      transition: all 0.15s;
+    }
+    .footer-nav a:hover { border-color: var(--green); color: var(--green); }
+
+    /* ── Responsive ────────────────────────────────────────── */
+    @media print {
+      #sidebar, #topbar, .footer-nav, .topbar-actions { display: none !important; }
+      #main { margin-left: 0; }
+      #content { padding: 20px; max-width: 100%; }
+      body { background: white; color: #111; }
+      h2, h3 { color: #111; }
+      .feature-card, .adj-card, .callout, .disclaimer { border-color: #ccc; background: #f9f9f9; }
+      .pipeline { flex-direction: column; }
+      .hero h1 { font-size: 28px; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════════════════════
+     SIDEBAR
+════════════════════════════════════════════════════════════ -->
+<aside id="sidebar">
+  <div class="sidebar-logo">
+    <div class="logo-mark">⚡ AISAST</div>
+    <div class="logo-sub">AI-Native SAST · v1.0.0</div>
+  </div>
+
+  <div class="sidebar-search">
+    <input type="text" placeholder="🔍  Search docs..." />
+  </div>
+
+  <nav>
+    <div class="nav-section">Getting Started</div>
+    <a href="#introduction" class="active"><span class="nav-icon">👋</span> Introduction</a>
+    <a href="#why-aisast"><span class="nav-icon">🎯</span> Why AISAST?</a>
+    <a href="#quickstart"><span class="nav-icon">🚀</span> Quick Start</a>
+
+    <div class="nav-section">Core Concepts</div>
+    <a href="#pipeline"><span class="nav-icon">⚙️</span> 5-Phase Pipeline</a>
+    <a href="#phase1" class="sub">Phase 1 — Assessment</a>
+    <a href="#phase2" class="sub">Phase 2 — Threat Modeling</a>
+    <a href="#phase3" class="sub">Phase 3 — Diagram</a>
+    <a href="#phase4" class="sub">Phase 4 — Code Review</a>
+    <a href="#phase5" class="sub">Phase 5 — Report</a>
+    <a href="#lwra"><span class="nav-icon">🎲</span> LWRA</a>
+    <a href="#pr-review"><span class="nav-icon">🔀</span> PR Review Mode</a>
+    <a href="#apply"><span class="nav-icon">🩹</span> Auto-Fix (apply)</a>
+
+    <div class="nav-section">Features</div>
+    <a href="#owasp-asi"><span class="nav-icon">🤖</span> OWASP ASI Coverage</a>
+    <a href="#semgrep-comparison"><span class="nav-icon">📊</span> vs Semgrep</a>
+    <a href="#languages"><span class="nav-icon">🌐</span> Supported Languages</a>
+    <a href="#cicd"><span class="nav-icon">🔄</span> CI/CD Integration</a>
+    <a href="#delta-caching"><span class="nav-icon">💾</span> Delta Scanning &amp; Caching</a>
+    <a href="#parallel-workers"><span class="nav-icon">🧵</span> Parallel Code Review</a>
+
+    <div class="nav-section">Reference</div>
+    <a href="#cli"><span class="nav-icon">💻</span> CLI Reference</a>
+    <a href="#output"><span class="nav-icon">📄</span> Output Formats</a>
+    <a href="#exit-codes"><span class="nav-icon">🔢</span> Exit Codes</a>
+    <a href="#disclaimer"><span class="nav-icon">⚠️</span> Disclaimer</a>
+  </nav>
+</aside>
+
+<!-- ═══════════════════════════════════════════════════════════
+     MAIN
+════════════════════════════════════════════════════════════ -->
+<div id="main">
+
+  <!-- Top bar -->
+  <div id="topbar">
+    <div class="breadcrumb">AISAST Docs &rsaquo; <span>Introduction</span></div>
+    <div class="topbar-actions">
+      <a class="btn-small" href="#" onclick="window.print()">🖨 Print / PDF</a>
+      <a class="btn-small" href="https://github.com/secops-outseer/ProjectAISAST" target="_blank">⭐ GitHub</a>
+    </div>
+  </div>
+
+  <!-- Content -->
+  <div id="content">
+
+    <!-- ── HERO ────────────────────────────────────────────── -->
+    <div class="hero" id="introduction">
+      <div class="hero-badge">⚡ Open Source · v1.0.0</div>
+      <h1>👋 Welcome to <em>AISAST</em></h1>
+      <p class="tagline">
+        The first AI-native static application security testing tool that understands your application before it scans it — eliminating false positives, covering AI/LLM threats, and telling you what to fix first.
+      </p>
+      <div class="hero-pills">
+        <div class="pill"><div class="dot"></div> 5-Phase AI Pipeline</div>
+        <div class="pill"><div class="dot"></div> STRIDE + OWASP ASI10</div>
+        <div class="pill"><div class="dot"></div> Evidence-Gated Findings</div>
+        <div class="pill"><div class="dot"></div> LWRA Risk Prioritisation</div>
+        <div class="pill"><div class="dot"></div> 11 Languages</div>
+        <div class="pill"><div class="dot"></div> CI/CD Ready</div>
+      </div>
+    </div>
+
+    <div class="callout">
+      <div class="callout-title">🚀 Quick Start</div>
+      Install and run your first scan in under 2 minutes: <code>pip install -e .</code> then <code>aisast scan &lt;path&gt;</code> — or launch the guided wizard with <code>./aisast</code>
+    </div>
+
+    <!-- ── WHAT IS AISAST ──────────────────────────────────── -->
+    <div class="section" id="why-aisast">
+      <h2><span class="icon">🎯</span> What is AISAST?</h2>
+      <p>
+        AISAST is an open source, AI-native Static Application Security Testing framework.
+        Unlike traditional SAST tools that match vulnerability signatures against raw source code,
+        AISAST deploys a sequence of five autonomous agents that first <strong>understand</strong> the
+        application — its architecture, trust boundaries, data flows, and threat surface — before
+        reporting a single vulnerability.
+      </p>
+      <p>
+        The result is a small set of <strong>verified, evidence-backed findings</strong> rather than
+        hundreds of alerts that developers learn to ignore. Every reported vulnerability includes the
+        exact file, line number, code snippet, and traced attack path that prove it is real and reachable.
+      </p>
+
+      <h3>Why Another SAST Tool?</h3>
+      <p>
+        Most SAST tools have the same problem: they generate hundreds of findings, but only a fraction
+        actually matter. Security teams spend days triaging alerts. Developers get overwhelmed by false
+        positives. Eventually the scanner becomes something everyone ignores.
+      </p>
+      <p>
+        The issue is not that traditional SAST tools are not finding enough vulnerabilities.
+        The issue is that they <strong>lack context</strong>. A typical SAST engine may flag string
+        concatenation near a SQL query but has no understanding of where that data came from, whether
+        it is user-controlled, or whether the vulnerable path can actually be reached.
+      </p>
+
+      <div class="feature-grid">
+        <div class="feature-card">
+          <div class="fc-icon">🏗️</div>
+          <h4>Architecture-First</h4>
+          <p>Maps trust boundaries, data flows, and entry points before any code review begins.</p>
+        </div>
+        <div class="feature-card">
+          <div class="fc-icon">🔬</div>
+          <h4>Evidence-Gated</h4>
+          <p>Every finding requires a file path, line number, and traced attack path. No proof, no report.</p>
+        </div>
+        <div class="feature-card">
+          <div class="fc-icon">🤖</div>
+          <h4>AI/LLM Coverage</h4>
+          <p>Automatically detects LLM frameworks and applies OWASP ASI10 threat categories — the only SAST tool that does.</p>
+        </div>
+        <div class="feature-card">
+          <div class="fc-icon">🎯</div>
+          <h4>Risk Prioritisation</h4>
+          <p>LWRA adjusts severity based on your real deployment environment so you know what to fix first.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── PIPELINE ────────────────────────────────────────── -->
+    <div class="section" id="pipeline">
+      <h2><span class="icon">⚙️</span> The 5-Phase Pipeline</h2>
+      <p>
+        AISAST runs five AI agents in sequence. Each agent has its own focused instructions and minimal
+        tool permissions — only what it needs for that phase, nothing more.
+      </p>
+
+      <div class="pipeline">
+        <div class="phase">
+          <div class="phase-num">01</div>
+          <div class="phase-icon">🗺️</div>
+          <div class="phase-name">Assessment</div>
+          <div class="phase-desc">Architecture mapping &amp; trust boundaries</div>
+        </div>
+        <div class="phase">
+          <div class="phase-num">02</div>
+          <div class="phase-icon">⚔️</div>
+          <div class="phase-name">Threat Model</div>
+          <div class="phase-desc">STRIDE + OWASP ASI per component</div>
+        </div>
+        <div class="phase">
+          <div class="phase-num">03</div>
+          <div class="phase-icon">📐</div>
+          <div class="phase-name">Diagram</div>
+          <div class="phase-desc">Visual threat model map</div>
+        </div>
+        <div class="phase">
+          <div class="phase-num">04</div>
+          <div class="phase-icon">🔍</div>
+          <div class="phase-name">Code Review</div>
+          <div class="phase-desc">Evidence-gated vulnerability proof</div>
+        </div>
+        <div class="phase">
+          <div class="phase-num">05</div>
+          <div class="phase-icon">📋</div>
+          <div class="phase-name">Report</div>
+          <div class="phase-desc">JSON + Markdown output</div>
+        </div>
+      </div>
+
+      <h3 id="phase1">Phase 1 — Architecture Assessment</h3>
+      <p>
+        The first agent explores the codebase the way a security engineer would on their first day.
+        It reads the directory structure, maps HTTP endpoints, WebSocket handlers, CLI entry points,
+        and file inputs. It traces authentication flows, identifies what data comes from untrusted
+        external sources versus trusted internal ones, and documents third-party dependencies.
+        This gets written to <code>SECURITY.md</code> and becomes the context every subsequent phase builds on.
+      </p>
+
+      <h3 id="phase2">Phase 2 — Threat Modeling (STRIDE + OWASP ASI)</h3>
+      <p>
+        The threat modeling agent reads <code>SECURITY.md</code> and applies the STRIDE framework
+        to the specific architecture it just learned about — not a generic ruleset, but threats derived
+        from how this particular application is built.
+      </p>
+      <p>
+        If the codebase includes LLM API calls, agent frameworks (LangChain, CrewAI, AutoGen,
+        claude-agent-sdk), tool execution patterns, or memory/session management for AI systems,
+        the agent automatically adds <strong>OWASP ASI01 through ASI10</strong> threat categories.
+      </p>
+
+      <h3 id="phase3">Phase 3 — Threat Model Diagram</h3>
+      <p>
+        An optional phase that generates a visual ASCII architecture diagram showing components,
+        trust boundaries, and threat vectors. Saves to <code>.aisast/THREAT_MODEL_DIAGRAM.md</code>.
+      </p>
+
+      <h3 id="phase4">Phase 4 — Code Review (Evidence-Based)</h3>
+      <p>
+        The code review agent takes the threat model and searches for proof. For each threat it reads
+        the relevant source files, follows the data flow from input to output, and looks for places where
+        untrusted data reaches a sensitive operation without validation.
+      </p>
+      <div class="callout info">
+        <div class="callout-title">Evidence Requirement</div>
+        The agent is explicitly instructed not to report anything it cannot prove with a specific file path,
+        line number, and actual code snippet. This is what keeps false positives low.
+      </div>
+
+      <h3 id="phase5">Phase 5 — Report Generation</h3>
+      <p>
+        A final agent transforms the vulnerability list into two output formats: a JSON file
+        (<code>scan_results.json</code>) for programmatic processing and a Markdown report with
+        executive summary, severity breakdown, primary exploit chain, and detailed entries including
+        CWE ID, description, code snippet, and remediation guidance.
+      </p>
+    </div>
+
+    <!-- ── LWRA ────────────────────────────────────────────── -->
+    <div class="section" id="lwra">
+      <h2><span class="icon">🎲</span> LWRA — Lightweight Risk Adjustment Agent</h2>
+      <p>
+        Finding vulnerabilities is only half the problem. With 30 findings across a production
+        codebase, security teams still face the question: <strong>what do we fix first?</strong>
+      </p>
+      <p>
+        The LWRA agent answers that question. It runs after the scan in two stages.
+      </p>
+
+      <h3>Stage 1 — Environment Intake</h3>
+      <p>
+        Ten questions covering: deployment environment (production / staging / dev), architecture
+        (monolith / microservices / serverless), network exposure, WAF, VPN, firewall, rate limiting,
+        data sensitivity (PII, financial, credentials, health), and cloud provider.
+      </p>
+
+      <h3>Stage 2 — Code-Driven Exploitability Analysis</h3>
+      <p>
+        Without asking the user anything further, LWRA reads every source file relevant to the
+        vulnerability list. For each finding it determines:
+      </p>
+      <ul>
+        <li><strong>Auth gate</strong> — is there an authentication check before the vulnerable code?</li>
+        <li><strong>Attack complexity</strong> — single direct call or multi-step chain?</li>
+        <li><strong>Source-to-sink reachability</strong> — does attacker-controlled input reach the sink?</li>
+        <li><strong>Code path activity</strong> — is the vulnerable function reachable from a live route?</li>
+        <li><strong>Known exploit patterns</strong> — does it match a CVE class or public PoC?</li>
+      </ul>
+
+      <h3>Adjustment Examples</h3>
+      <div class="adjustment-example">
+        <div class="adj-card">
+          <div class="label">Original</div>
+          <div class="value" style="color:#ff6060">CRITICAL</div>
+          <div class="context">SQL Injection · Public API · No WAF</div>
+        </div>
+        <div class="adj-arrow">→</div>
+        <div class="adj-card">
+          <div class="label">Adjusted</div>
+          <div class="value" style="color:#ff6060">CRITICAL</div>
+          <div class="context">Stays CRITICAL — no mitigating controls</div>
+        </div>
+      </div>
+      <div class="adjustment-example">
+        <div class="adj-card">
+          <div class="label">Original</div>
+          <div class="value" style="color:#ff6060">CRITICAL</div>
+          <div class="context">SQL Injection · Behind MFA + VPN + WAF · Staging</div>
+        </div>
+        <div class="adj-arrow">→</div>
+        <div class="adj-card">
+          <div class="label">Adjusted</div>
+          <div class="value" style="color:#00c864">LOW</div>
+          <div class="context">Reduced 3 levels — environment fully mitigated</div>
+        </div>
+      </div>
+
+      <p style="margin-top:16px">
+        Hardcoded secrets and credentials <strong>never downgrade below HIGH</strong> regardless of
+        environment — they are compromised as soon as the code is read.
+      </p>
+
+      <h3>LWRA Output Per Finding</h3>
+      <table>
+        <tr>
+          <th>Field</th><th>Description</th>
+        </tr>
+        <tr><td><code>original_severity</code></td><td>Severity from the code review phase</td></tr>
+        <tr><td><code>adjusted_severity</code></td><td>Severity after environment + exploitability analysis</td></tr>
+        <tr><td><code>risk_score</code></td><td>Numeric 1.0–10.0 score for precise ordering</td></tr>
+        <tr><td><code>adjustment_reason</code></td><td>Plain-English explanation citing specific controls</td></tr>
+        <tr><td><code>exploitability_assessment</code></td><td>Auth gate, complexity, PoC pattern from code analysis</td></tr>
+        <tr><td><code>reachability_assessment</code></td><td>Live route reachability + source-to-sink trace</td></tr>
+        <tr><td><code>soft_fixes</code></td><td>Working nginx / WAF / firewall config snippets</td></tr>
+        <tr><td><code>code_patch</code></td><td>Exact before/after line replacement at the vulnerable line</td></tr>
+      </table>
+    </div>
+
+    <!-- ── PR REVIEW ───────────────────────────────────────── -->
+    <div class="section" id="pr-review">
+      <h2><span class="icon">🔀</span> PR Review Mode</h2>
+      <p>
+        A full repository scan re-analyzes code that hasn't changed and takes minutes to run — the wrong
+        tool for reviewing a single pull request. <code>aisast pr-review</code> instead scans only the diff,
+        using the baseline <code>SECURITY.md</code> and <code>THREAT_MODEL.json</code> from a prior full scan
+        as context for what the change actually touches.
+      </p>
+      <p>
+        A dedicated <code>pr-code-review</code> agent reads the diff against that baseline and classifies
+        every change into one of four categories:
+      </p>
+      <table>
+        <tr><th>Classification</th><th>Meaning</th></tr>
+        <tr><td><code>new_threat</code></td><td>The change opens a new attack surface that didn't exist before</td></tr>
+        <tr><td><code>threat_enabler</code></td><td>Makes an already-known threat exploitable — e.g. removes a guard on a previously theoretical path</td></tr>
+        <tr><td><code>mitigation_removal</code></td><td>Deletes or weakens an existing security control</td></tr>
+        <tr><td><code>regression</code></td><td>Reintroduces a vulnerability that was already found and fixed</td></tr>
+      </table>
+
+      <h3>Usage</h3>
+      <div class="code-block">
+        <div class="code-header"><span class="code-lang">bash</span></div>
+        <pre><span class="cm"># One-time baseline (creates SECURITY.md + THREAT_MODEL.json)</span>
+aisast scan .
+
+<span class="cm"># Review the diff between two branches</span>
+aisast pr-review . --base main --head feature/new-login
+
+<span class="cm"># Review a specific commit range, or the last N commits</span>
+aisast pr-review . --range abc1234~1..abc1234
+aisast pr-review . --last 3
+
+<span class="cm"># Merge confirmed PR findings back into the baseline</span>
+aisast pr-review . --base main --head HEAD --update-artifacts</pre>
+      </div>
+      <div class="callout info">
+        <div class="callout-title">Why this matters in CI</div>
+        PR review is what makes AISAST practical to run on every push instead of just nightly — it's scoped
+        to the diff, so it's fast and cheap enough to gate merges without slowing the team down.
+      </div>
+    </div>
+
+    <!-- ── APPLY ───────────────────────────────────────────── -->
+    <div class="section" id="apply">
+      <h2><span class="icon">🩹</span> Auto-Fix — <code>aisast apply</code></h2>
+      <p>
+        LWRA doesn't just prioritize findings — for many vulnerability classes it also generates an exact
+        <code>code_patch</code>: a before/after line replacement at the vulnerable line. <code>aisast apply</code>
+        takes those patches straight from <code>LWRA_REPORT.json</code> and writes them to disk.
+      </p>
+      <div class="feature-grid">
+        <div class="feature-card">
+          <div class="fc-icon">👀</div>
+          <h4>Dry-Run First</h4>
+          <p><code>--dry-run</code> shows exactly what would change, file by file, without touching anything.</p>
+        </div>
+        <div class="feature-card">
+          <div class="fc-icon">✅</div>
+          <h4>Deterministic Only</h4>
+          <p>Only findings with a concrete, deterministic code fix are eligible for auto-apply — nothing is guessed.</p>
+        </div>
+      </div>
+      <div class="code-block">
+        <div class="code-header"><span class="code-lang">bash</span></div>
+        <pre><span class="cm"># Preview every available patch without writing anything</span>
+aisast apply --dry-run
+
+<span class="cm"># Apply them all</span>
+aisast apply --all</pre>
+      </div>
+    </div>
+
+    <!-- ── OWASP ASI ───────────────────────────────────────── -->
+    <div class="section" id="owasp-asi">
+      <h2><span class="icon">🤖</span> OWASP ASI Coverage</h2>
+      <p>
+        AISAST is the first open source SAST tool that automatically detects AI/LLM patterns
+        and applies structured threat modeling to them. When agent frameworks are detected,
+        the following OWASP Agentic Security Initiative threats are added to the threat model:
+      </p>
+      <table>
+        <tr><th>#</th><th>Threat</th><th>Description</th></tr>
+        <tr><td>ASI01</td><td>Goal Hijacking</td><td>Prompt injection redirecting agent objectives</td></tr>
+        <tr><td>ASI02</td><td>Guardrail Bypass</td><td>Circumventing safety filters and content policies</td></tr>
+        <tr><td>ASI03</td><td>Tool Misuse</td><td>Exploiting agent tools for unintended operations</td></tr>
+        <tr><td>ASI04</td><td>Unbounded Consumption</td><td>Resource exhaustion via agent loops</td></tr>
+        <tr><td>ASI05</td><td>Insecure Output Handling</td><td>LLM output rendered without sanitisation</td></tr>
+        <tr><td>ASI06</td><td>Overreliance on LLM</td><td>Trusting LLM output for security decisions</td></tr>
+        <tr><td>ASI07</td><td>Multi-Agent Trust</td><td>Insufficient trust validation between agents</td></tr>
+        <tr><td>ASI08</td><td>Memory Manipulation</td><td>Poisoning agent memory or context stores</td></tr>
+        <tr><td>ASI09</td><td>Hallucination Risk</td><td>Acting on fabricated facts or tool responses</td></tr>
+        <tr><td>ASI10</td><td>Insufficient Logging</td><td>Missing audit trail for agent decisions</td></tr>
+      </table>
+
+      <div class="callout info">
+        <div class="callout-title">Detected Frameworks</div>
+        OpenAI SDK · Anthropic SDK · LangChain · CrewAI · AutoGen · LlamaIndex · Haystack · claude-agent-sdk
+      </div>
+    </div>
+
+    <!-- ── COMPARISON ─────────────────────────────────────── -->
+    <div class="section" id="semgrep-comparison">
+      <h2><span class="icon">📊</span> AISAST vs Traditional SAST</h2>
+      <p>
+        Run against the same vulnerable application (<em>crewtrack</em> — 6 source files, 10 vulnerabilities),
+        here is what each tool found:
+      </p>
+      <table>
+        <tr>
+          <th>Vulnerability</th>
+          <th>Semgrep</th>
+          <th>AISAST</th>
+        </tr>
+        <tr><td>SQL Injection (ORDER BY)</td><td><span class="badge yes">✓ Found</span></td><td><span class="badge yes">✓ Found</span></td></tr>
+        <tr><td>SSTI — Jinja2 unsandboxed</td><td><span class="badge yes">✓ Found</span></td><td><span class="badge yes">✓ Found</span></td></tr>
+        <tr><td>Pickle deserialization → RCE</td><td><span class="badge yes">✓ Found</span></td><td><span class="badge yes">✓ Found</span></td></tr>
+        <tr><td>Path traversal</td><td><span class="badge yes">✓ Found</span></td><td><span class="badge yes">✓ Found</span></td></tr>
+        <tr><td>SSRF via webhook URL</td><td><span class="badge no">✗ Missed</span></td><td><span class="badge yes">✓ Found</span></td></tr>
+        <tr><td>Hardcoded master key bypass</td><td><span class="badge no">✗ Missed</span></td><td><span class="badge yes">✓ Found</span></td></tr>
+        <tr><td>IDOR — cross-tenant task read</td><td><span class="badge no">✗ Missed</span></td><td><span class="badge yes">✓ Found</span></td></tr>
+        <tr><td>IDOR — cross-tenant task delete</td><td><span class="badge no">✗ Missed</span></td><td><span class="badge yes">✓ Found</span></td></tr>
+        <tr><td>Business logic — status bypass</td><td><span class="badge no">✗ Missed</span></td><td><span class="badge yes">✓ Found</span></td></tr>
+        <tr><td>Privilege escalation (mass assignment)</td><td><span class="badge no">✗ Missed</span></td><td><span class="badge yes">✓ Found</span></td></tr>
+      </table>
+      <p style="color:var(--text-dim); font-size:13px;">
+        Semgrep also produced 6 duplicate findings on the same SQL injection line (4 different rules, 1 false positive on pickle.dumps) and a low-value <code>host=0.0.0.0</code> warning.
+      </p>
+    </div>
+
+    <!-- ── DELTA SCANNING & CACHING ─────────────────────────── -->
+    <div class="section" id="delta-caching">
+      <h2><span class="icon">💾</span> Delta Scanning &amp; Caching</h2>
+      <p>
+        Re-running a full scan after a small code change shouldn't mean paying for and waiting on all five
+        phases again. AISAST hashes the repository and tracks which phases' outputs are still valid.
+      </p>
+      <div class="feature-grid">
+        <div class="feature-card">
+          <div class="fc-icon">🔁</div>
+          <h4>Automatic cache hits</h4>
+          <p>If the repo hash hasn't changed since the last scan, unaffected phases are skipped entirely and prior artifacts are reused.</p>
+        </div>
+        <div class="feature-card">
+          <div class="fc-icon">🎯</div>
+          <h4>Delta scans</h4>
+          <p>When only some files changed, AISAST can re-run code review against just the changed files instead of the whole repository.</p>
+        </div>
+      </div>
+      <div class="code-block">
+        <div class="code-header"><span class="code-lang">bash</span></div>
+        <pre><span class="cm"># Force a full re-run, ignoring the cache</span>
+aisast scan . --no-cache</pre>
+      </div>
+    </div>
+
+    <!-- ── PARALLEL WORKERS ──────────────────────────────────── -->
+    <div class="section" id="parallel-workers">
+      <h2><span class="icon">🧵</span> Parallel Code Review</h2>
+      <p>
+        Code review (Phase 4) is the most expensive phase — it's where every threat hypothesis gets checked
+        against real source. On large repositories with many identified threats, AISAST can split that phase
+        across multiple parallel workers, each independently reviewing a subset of threats.
+      </p>
+      <div class="code-block">
+        <div class="code-header"><span class="code-lang">bash</span></div>
+        <pre><span class="cm"># 4 parallel code-review workers instead of 1 sequential pass</span>
+aisast scan . --workers 4</pre>
+      </div>
+      <div class="callout warning">
+        <div class="callout-title">Sequential-only paths</div>
+        Delta scans and the optional threat-model-diagram phase always run sequentially — parallel workers
+        only apply to a full scan's code-review phase.
+      </div>
+    </div>
+
+    <!-- ── QUICK START ─────────────────────────────────────── -->
+    <div class="section" id="quickstart">
+      <h2><span class="icon">🚀</span> Quick Start</h2>
+
+      <h3>Installation</h3>
+      <div class="code-block">
+        <div class="code-header">
+          <span class="code-lang">bash</span>
+          <button class="code-copy">copy</button>
+        </div>
+        <pre><span class="cm"># Clone and install</span>
+git clone https://github.com/secops-outseer/ProjectAISAST
+cd ProjectAISAST/packages/core
+pip install -e .
+
+<span class="cm"># Set your API key</span>
+export ANTHROPIC_API_KEY=<span class="str">"your-key-here"</span>
+
+<span class="cm"># Run guided wizard</span>
+./aisast</pre>
+      </div>
+
+      <h3>Direct Scan</h3>
+      <div class="code-block">
+        <div class="code-header">
+          <span class="code-lang">bash</span>
+        </div>
+        <pre><span class="cm"># Full scan</span>
+aisast scan /path/to/repo
+
+<span class="cm"># With diagram + LWRA risk adjustment</span>
+aisast scan /path/to/repo --diagram --lwra
+
+<span class="cm"># Quiet mode for CI/CD</span>
+aisast scan /path/to/repo --quiet</pre>
+      </div>
+
+      <h3 id="cicd">CI/CD Integration</h3>
+      <div class="code-block">
+        <div class="code-header"><span class="code-lang">yaml</span></div>
+        <pre><span class="cm"># .github/workflows/aisast.yml</span>
+<span class="kw">name</span>: AISAST Security Scan
+<span class="kw">on</span>: [push, pull_request]
+<span class="kw">jobs</span>:
+  <span class="fn">security</span>:
+    <span class="kw">runs-on</span>: ubuntu-latest
+    <span class="kw">steps</span>:
+      - <span class="kw">uses</span>: actions/checkout@v4
+      - <span class="kw">run</span>: pip install aisast
+      - <span class="kw">run</span>: aisast scan . --quiet
+        <span class="kw">env</span>:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}</pre>
+      </div>
+
+      <h3 id="exit-codes">Exit Codes</h3>
+      <table>
+        <tr><th>Code</th><th>Meaning</th><th>CI Action</th></tr>
+        <tr><td><code>0</code></td><td>No findings or low / medium only</td><td>Pass</td></tr>
+        <tr><td><code>1</code></td><td>High severity findings confirmed</td><td>Warning</td></tr>
+        <tr><td><code>2</code></td><td>Critical severity findings confirmed</td><td>Fail build</td></tr>
+      </table>
+    </div>
+
+    <!-- ── LANGUAGES ──────────────────────────────────────── -->
+    <div class="section" id="languages">
+      <h2><span class="icon">🌐</span> Supported Languages</h2>
+      <p>Detected automatically from file extensions — no configuration required.</p>
+      <div style="display:flex; flex-wrap:wrap; gap:10px; margin-top:16px">
+        <div class="pill">🐍 Python</div>
+        <div class="pill">🟨 JavaScript</div>
+        <div class="pill">🔷 TypeScript</div>
+        <div class="pill">🦫 Go</div>
+        <div class="pill">☕ Java</div>
+        <div class="pill">🦀 Rust</div>
+        <div class="pill">🐘 PHP</div>
+        <div class="pill"># C#</div>
+        <div class="pill">💎 Ruby</div>
+        <div class="pill">🎯 Kotlin</div>
+        <div class="pill">🍎 Swift</div>
+      </div>
+    </div>
+
+    <!-- ── CLI REFERENCE ─────────────────────────────────── -->
+    <div class="section" id="cli">
+      <h2><span class="icon">💻</span> CLI Reference</h2>
+      <p>AISAST ships four commands. Every command supports <code>--quiet</code> and <code>--debug</code>.</p>
+
+      <h3>aisast scan</h3>
+      <p>Full repository scan — runs the 5-phase pipeline.</p>
+      <table>
+        <tr><th>Flag</th><th>Description</th></tr>
+        <tr><td><code>-m, --model</code></td><td>Claude model to use (sonnet / haiku / opus)</td></tr>
+        <tr><td><code>-s, --severity</code></td><td>Minimum severity to report</td></tr>
+        <tr><td><code>-f, --format</code></td><td>markdown / json / text / table</td></tr>
+        <tr><td><code>-o, --output</code></td><td>Write report to a specific file</td></tr>
+        <tr><td><code>--subagent</code></td><td>Run one phase only (assessment / threat-modeling / threat-model-diagram / code-review / report-generator)</td></tr>
+        <tr><td><code>--resume-from</code></td><td>Resume a scan starting at a specific phase</td></tr>
+        <tr><td><code>--diagram</code> / <code>--no-diagram</code></td><td>Include or skip the optional threat model diagram phase</td></tr>
+        <tr><td><code>--lwra</code></td><td>Run LWRA risk adjustment after the scan</td></tr>
+        <tr><td><code>--workers</code></td><td>Parallel workers for code review, 1–5 (default 1)</td></tr>
+        <tr><td><code>--no-cache</code></td><td>Ignore cached artifacts, re-run every phase</td></tr>
+        <tr><td><code>--agentic</code> / <code>--no-agentic</code></td><td>Force AI/agentic threat classification on or off</td></tr>
+        <tr><td><code>--force</code></td><td>Skip confirmation prompts when overwriting artifacts</td></tr>
+        <tr><td><code>--skip-checks</code></td><td>Bypass prerequisite artifact validation</td></tr>
+      </table>
+
+      <h3>aisast pr-review</h3>
+      <p>Diff-scoped scan for pull requests — see <a href="#pr-review" style="color:var(--accent)">PR Review Mode</a> above.</p>
+      <table>
+        <tr><th>Flag</th><th>Description</th></tr>
+        <tr><td><code>--base</code> / <code>--head</code></td><td>Compare two branches or commits</td></tr>
+        <tr><td><code>--range</code></td><td>A specific commit range</td></tr>
+        <tr><td><code>--diff</code></td><td>Review from a saved patch/diff file</td></tr>
+        <tr><td><code>--last</code></td><td>Review the last N commits</td></tr>
+        <tr><td><code>--update-artifacts</code></td><td>Merge confirmed findings back into the baseline VULNERABILITIES.json</td></tr>
+      </table>
+
+      <h3>aisast lwra</h3>
+      <p>Run risk adjustment on an existing scan's results without re-scanning code.</p>
+      <table>
+        <tr><th>Flag</th><th>Description</th></tr>
+        <tr><td><code>-m, --model</code></td><td>Claude model to use</td></tr>
+        <tr><td><code>-o, --output</code></td><td>Write the LWRA report to a specific file</td></tr>
+      </table>
+
+      <h3>aisast apply</h3>
+      <p>Apply LWRA's generated code patches — see <a href="#apply" style="color:var(--accent)">Auto-Fix</a> above.</p>
+      <table>
+        <tr><th>Flag</th><th>Description</th></tr>
+        <tr><td><code>--all</code></td><td>Apply every available code patch</td></tr>
+        <tr><td><code>--dry-run</code></td><td>Preview changes without writing files</td></tr>
+      </table>
+    </div>
+
+    <!-- ── OUTPUT FORMATS ─────────────────────────────────── -->
+    <div class="section" id="output">
+      <h2><span class="icon">📄</span> Output Formats</h2>
+      <p>
+        Every scan writes structured artifacts to <code>.aisast/</code> regardless of format, then renders
+        the report in whichever format you asked for via <code>--format</code>.
+      </p>
+      <table>
+        <tr><th>Format</th><th>Use case</th></tr>
+        <tr><td><code>markdown</code> <em>(default)</em></td><td>Human-readable report with executive summary, exploit chains, and detailed findings — saved to <code>scan_report.md</code></td></tr>
+        <tr><td><code>json</code></td><td>Machine-readable, for feeding into dashboards or other tooling</td></tr>
+        <tr><td><code>table</code></td><td>Compact terminal summary — good for a quick glance mid-CI-log</td></tr>
+        <tr><td><code>text</code></td><td>Plain flat list, no styling — greppable output</td></tr>
+      </table>
+      <div class="code-block">
+        <div class="code-header"><span class="code-lang">bash</span></div>
+        <pre>aisast scan . --format json --output results.json
+aisast scan . --format table</pre>
+      </div>
+    </div>
+
+    <hr />
+
+    <!-- ── DISCLAIMER ─────────────────────────────────────── -->
+    <div class="section" id="disclaimer">
+      <h2><span class="icon">⚠️</span> Disclaimer</h2>
+      <div class="disclaimer">
+        <strong>Authorized Use Only.</strong> AISAST is intended for use on applications and systems
+        that you own or have explicit written permission to test. Unauthorized scanning of third-party
+        applications or infrastructure may violate applicable laws including the Computer Fraud and
+        Abuse Act (CFAA) and equivalent legislation in your jurisdiction.<br /><br />
+        The authors and contributors of AISAST accept no liability for misuse of this tool.
+        Users bear full responsibility for ensuring their use complies with all applicable laws,
+        regulations, and terms of service.<br /><br />
+        AISAST is released under the <strong>Apache 2.0 License</strong>.
+        Security findings generated by this tool are provided as-is for informational purposes.
+        Always validate findings in your own environment before taking remediation action.
+      </div>
+    </div>
+
+  </div><!-- /content -->
+
+  <!-- Footer nav -->
+  <div class="footer-nav">
+    <a href="#">← Previous</a>
+    <span style="color:var(--text-dim); font-size:13px">AISAST Documentation · v1.0.0</span>
+    <a href="#why-aisast">Next → Why AISAST?</a>
+  </div>
+
+</div><!-- /main -->
+
+<script>
+  // Highlight active nav link on scroll
+  const sections = document.querySelectorAll('[id]');
+  const navLinks = document.querySelectorAll('nav a');
+  window.addEventListener('scroll', () => {
+    let current = '';
+    sections.forEach(s => {
+      if (window.scrollY >= s.offsetTop - 80) current = s.id;
+    });
+    navLinks.forEach(a => {
+      a.classList.remove('active');
+      if (a.getAttribute('href') === '#' + current) a.classList.add('active');
+    });
+  });
+</script>
+
+</body>
+</html>

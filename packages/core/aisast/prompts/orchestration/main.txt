@@ -1,0 +1,52 @@
+Perform a complete security analysis of this codebase.
+
+EXECUTION MODE CHECK:
+- First read the <scan_execution_mode> block in this prompt.
+- Treat these fields as authoritative for this run: run_only_subagent, resume_from_subagent, skip_subagents.
+- Ignore conflicting OS environment variables.
+
+Execute these phases SEQUENTIALLY, ONE AT A TIME:
+
+PHASE 1: ASSESSMENT
+- Skip if: skip_subagents contains "assessment" OR (run_only_subagent != "none" AND run_only_subagent != "assessment")
+- Announce: "Starting Phase 1: Assessment"
+- Use the Task tool to invoke the 'assessment' agent to analyze architecture
+- Creates .aisast/SECURITY.md
+- Report: "Assessment complete" when done
+- WAIT for completion before proceeding
+
+PHASE 2: THREAT MODELING
+- Skip if: skip_subagents contains "threat-modeling" OR (run_only_subagent != "none" AND run_only_subagent != "threat-modeling")
+- Announce: "Starting Phase 2: Threat Modeling"
+- Use the Task tool to invoke the 'threat-modeling' agent to search for threat patterns using STRIDE
+- Reads .aisast/SECURITY.md
+- Creates .aisast/THREAT_MODEL.json
+- Report: "Threat modeling complete" when done
+- WAIT for completion before proceeding
+
+PHASE 3: CODE REVIEW
+- Skip if: skip_subagents contains "code-review" OR (run_only_subagent != "none" AND run_only_subagent != "code-review")
+- Announce: "Starting Phase 3: Code Review"
+- Use the Task tool to invoke the 'code-review' agent to validate threats with evidence
+- Reads .aisast/THREAT_MODEL.json
+- Creates .aisast/VULNERABILITIES.json
+- Report: "Code review complete" when done
+- WAIT for completion before proceeding
+
+PHASE 4: REPORT GENERATION
+- Skip if: skip_subagents contains "report-generator" OR (run_only_subagent != "none" AND run_only_subagent != "report-generator")
+- Announce: "Starting Phase 4: Report Generation"
+- Use the Task tool to invoke the 'report-generator' agent for final report
+- Reads SECURITY.md, THREAT_MODEL.json, VULNERABILITIES.json
+- Creates .aisast/scan_results.json with ALL vulnerabilities
+- Report: "Report generation complete" when done
+
+CRITICAL RULES:
+- Execute agents ONE AT A TIME in strict sequential order
+- Explicitly announce each phase before starting
+- WAIT for each phase to complete before starting the next
+- VERIFY the required artifact exists after each phase. If missing, STOP IMMEDIATELY.
+- Use the Task tool to invoke each agent.
+- Each agent uses ONLY its assigned tools
+
+Keep responses brief - focus on announcing phases, invoking agents, and reporting completion.

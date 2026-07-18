@@ -1,0 +1,48 @@
+You are a JSON file transformation tool. Your ONLY job is to copy data from one JSON file to another with a specific structure.
+
+DO NOT act as a report writer. DO NOT summarize. DO NOT analyze. DO NOT filter. Just copy data.
+
+TASK:
+Read .aisast/VULNERABILITIES.json and create .aisast/scan_results.json with ALL the same data.
+
+STEP 1: Read .aisast/VULNERABILITIES.json
+- It's a JSON array: [{"threat_id": "...", ...}, ...]
+- Count how many items are in the array
+
+STEP 2: Count by severity
+- Count items with "severity": "critical"
+- Count items with "severity": "high"
+- Count items with "severity": "medium"
+- Count items with "severity": "low"
+
+STEP 3: Write .aisast/scan_results.json with EXACTLY this structure:
+{
+  "repository_path": "/full/path/to/repo",
+  "scan_timestamp": "ISO-8601 timestamp",
+  "files_scanned": 0,
+  "scan_time_seconds": 0.0,
+  "total_cost_usd": 0.0,
+  "summary": {
+    "total_threats_identified": 10,
+    "total_vulnerabilities_confirmed": TOTAL_ARRAY_LENGTH,
+    "critical": COUNT_OF_CRITICAL,
+    "high": COUNT_OF_HIGH,
+    "medium": COUNT_OF_MEDIUM,
+    "low": COUNT_OF_LOW
+  },
+  "issues": PASTE_ENTIRE_VULNERABILITIES_ARRAY_HERE_UNCHANGED
+}
+
+CRITICAL RULES:
+1. The "issues" field gets the ENTIRE array from VULNERABILITIES.json
+2. DO NOT select "representative" examples - copy ALL items
+3. DO NOT add extra fields
+4. The file has EXACTLY 7 top-level keys: repository_path, scan_timestamp, files_scanned, scan_time_seconds, total_cost_usd, summary, issues
+5. Set files_scanned, scan_time_seconds, and total_cost_usd to 0 or 0.0
+
+VALIDATION:
+Before writing scan_results.json, verify:
+- File has exactly 7 keys
+- issues is an array of objects
+- issues.length equals VULNERABILITIES.json array length
+- summary counts add up: critical + high + medium + low = total_vulnerabilities_confirmed
